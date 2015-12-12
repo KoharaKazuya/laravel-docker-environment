@@ -1,0 +1,8 @@
+#!/bin/sh
+
+set -eu
+cd "$(dirname $0)"
+
+./setup
+
+docker run --rm -it -v "$(cd ..; pwd)"/laravel:/workspace localhost:5000/laravel-dev composer "$@"
