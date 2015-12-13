@@ -9,11 +9,15 @@ if ! ($(which docker > /dev/null) && $(which docker-machine > /dev/null)); then
   exit 1
 fi
 
+# Docker を起動する仮想マシンを起動
+if [ "$(docker-machine status default)" = Stopped ]; then
+  docker-machine restart default
+fi
 # Docker を起動する仮想マシンの環境設定を取得
 eval $(docker-machine env default)
 
 # 各イメージがビルドされていなかったらビルド
-for IMAGE_NAME in "php56" "php56-apache" "laravel-dev"; do
+for IMAGE_NAME in "storage" "php56" "php56-apache" "laravel-dev" "postgres94"; do
   if ! (docker images | grep localhost:5000/$IMAGE_NAME > /dev/null); then
     docker build -t localhost:5000/$IMAGE_NAME ./docker/$IMAGE_NAME
   fi
@@ -27,7 +31,20 @@ if ! (docker images | grep localhost:5000/php56-apache-laravel > /dev/null); the
   popd
 fi
 
-# 各コンテナが起動してなかったら起動
-if ! (docker ps | grep laravel-server > /dev/null); then
-  docker run --name laravel-server -d -p 80:80 -v "$(cd ..; pwd)"/laravel:/workspace localhost:5000/php56-apache-laravel
+# 各コンテナがなければ作成
+if ! (docker ps -a | grep storage > /dev/null); then
+  docker create --name storage -v "$(cd ..; pwd)"/laravel:/var/www/laravel localhost:5000/storage
 fi
+if ! (docker ps -a | grep postgres > /dev/null); then
+  docker run --name postgres -d -p 5432:5432 --volumes-from storage localhost:5000/postgres94
+fi
+if ! (docker ps -a | grep laravel-server > /dev/null); then
+  docker run --name laravel-server -d -p 80:80 --volumes-from storage localhost:5000/php56-apache-laravel
+fi
+
+# 各コンテナが起動してなかったら起動
+for CONTAINER_NAME in "postgres" "laravel-server"; do
+  if ! (docker ps | grep $CONTAINER_NAME > /dev/null); then
+    docker start $CONTAINER_NAME
+  fi
+done

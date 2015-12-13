@@ -5,4 +5,4 @@ cd "$(dirname $0)"
 
 ./setup
 
-docker run --rm -it -v "$(cd ..; pwd)"/laravel:/workspace localhost:5000/laravel-dev php artisan "$@"
+docker run --rm -it --volumes-from storage localhost:5000/laravel-dev php artisan "$@"
